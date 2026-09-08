@@ -1,0 +1,21 @@
+[package]
+name = "jdr"
+version = "0.1.0"
+edition = "2021"
+description = "Jeu de rôle 2D top-down inspiré d'Ultima V, en Rust + Bevy."
+license = "MIT"
+
+[dependencies]
+bevy = "0.19"
+
+# Décompression rapide en debug, optimisation en release.
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
