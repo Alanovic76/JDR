@@ -50,3 +50,5 @@ proposer du code.
 ## Licence
 
 MIT — voir [LICENSE](LICENSE).
+
+## END
