@@ -1,54 +1,64 @@
-# JDR
+# JDR — Niveau 01
 
-Jeu de rôle 2D top-down inspiré de la série *Ultima* (esthétique Ultima V),
-écrit en **Rust** avec le moteur **[Bevy](https://bevy.org)**.
+Premier prototype jouable du projet JDR en Rust + Bevy.
 
-## Prérequis
+## Ce prototype contient
 
-- [Rust](https://rustup.rs/) (édition 2021, toolchain stable récente)
-- Sur Linux, les dépendances système de Bevy (voir la
-  [doc officielle](https://bevy.org/learn/quick-start/getting-started/setup/#linux))
+- Une carte 2D en grille de 25 x 15 cases
+- Un personnage contrôlable
+- Déplacement avec **ZQSD** ou **WASD**, ainsi que les flèches
+- Collision avec les murs
+- Une sortie de niveau
+- Un PNJ décoratif
+- Une interface indiquant les commandes et l'objectif
+- Une structure de projet prévue pour être développée par plusieurs IA
 
 ## Lancer le jeu
+
+Il faut avoir Rust installé.
 
 ```bash
 cargo run
 ```
 
-Pour une build optimisée (recommandé pour tester les performances réelles) :
+Pour une version optimisée :
 
 ```bash
 cargo run --release
 ```
 
-## Contrôles
+## Structure
 
-| Action    | Touche(s)          |
-|-----------|---------------------|
-| Déplacement | Z Q S D ou flèches |
-| Attaque   | A                    |
-| Repos     | R                    |
-| Quitter   | Échap                |
+```text
+src/
+├── main.rs
+├── player/
+│   └── mod.rs
+├── world/
+│   └── mod.rs
+└── ui/
+    └── mod.rs
 
-## Structure du projet
+assets/
+└── README.md
 
-Voir [ARCHITECTURE.md](ARCHITECTURE.md) pour le détail de l'organisation du code.
+tests/
+└── README.md
+```
 
-## Documentation
+## Objectif du niveau
 
-- [AI_CONTEXT.md](AI_CONTEXT.md) — contexte et règles pour les IA contribuant au projet (Claude, ChatGPT, etc.)
-- [ARCHITECTURE.md](ARCHITECTURE.md) — organisation technique du code
-- [GAME_DESIGN.md](GAME_DESIGN.md) — vision et mécaniques de jeu
-- [DECISIONS.md](DECISIONS.md) — journal des décisions techniques
+Partir du point de départ en haut à gauche et atteindre la porte de sortie en bas à droite sans traverser les murs.
 
-## Contribuer
+## Étape suivante
 
-Ce projet est développé avec l'aide de plusieurs IA en plus d'un développeur
-humain. Toute IA (ou humain) contribuant doit lire `AI_CONTEXT.md` avant de
-proposer du code.
-
-## Licence
-
-MIT — voir [LICENSE](LICENSE).
-
-## END
+Ce niveau est volontairement simple. Il servira de base pour ajouter progressivement :
+- caméra plus évoluée
+- vraie carte de jeu
+- sprites
+- ennemis
+- combat
+- inventaire
+- dialogues
+- sauvegarde
+- quêtes
