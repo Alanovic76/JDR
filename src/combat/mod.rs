@@ -4,14 +4,14 @@ mod systems;
 use bevy::prelude::*;
 
 pub use components::*;
-
-use systems::attack_input_system;
+use systems::combat_system;
 
 pub struct CombatPlugin;
 
 impl Plugin for CombatPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<AttackEvent>()
-            .add_systems(Update, attack_input_system);
+        app.init_resource::<CombatState>()
+            .init_resource::<DiceRng>()
+            .add_systems(Update, combat_system);
     }
 }

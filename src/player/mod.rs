@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
-use crate::world::{grid_to_world, is_blocked, world_to_grid, Level, TILE_SIZE};
+use crate::combat::{CombatState, DiceRng, MonsterType, PlayerStats};
+use crate::world::{grid_to_world, is_blocked, world_to_grid, Level};
 
 #[derive(Component)]
 pub struct Player;
@@ -13,12 +14,15 @@ pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, spawn_player)
-            .add_systems(Update, (player_movement, check_exit));
+            .add_systems(Update, (player_movement, check_exit, check_monster));
     }
 }
 
-fn spawn_player(mut commands: Commands, level: Res<Level>) {
-    let start = level.player_start.unwrap_or(IVec2::new(1, 1));
+fn spawn_player(
+    mut commands: Commands,
+    level: Res<Level>,
+) {
+    let start = level.player_start.unwrap_or(IVec2::new(1, 7));
     let position = grid_to_world(start);
 
     commands.spawn((
@@ -28,6 +32,7 @@ fn spawn_player(mut commands: Commands, level: Res<Level>) {
         ),
         Transform::from_xyz(position.x, position.y, 5.0),
         Player,
+        PlayerStats::default(),
     ));
 }
 
@@ -35,8 +40,13 @@ fn player_movement(
     keyboard: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
     level: Res<Level>,
+    combat: Res<CombatState>,
     mut player_query: Query<&mut Transform, With<Player>>,
 ) {
+    if combat.active || level.finished {
+        return;
+    }
+
     let Ok(mut transform) = player_query.single_mut() else {
         return;
     };
@@ -64,7 +74,6 @@ fn player_movement(
     let delta = direction * PLAYER_SPEED * time.delta_secs();
     let current = transform.translation.truncate();
 
-    // Collision séparée sur X puis Y : cela permet de "glisser" le long des murs.
     let next_x = current + Vec2::new(delta.x, 0.0);
     if can_player_move(level.as_ref(), next_x) {
         transform.translation.x = next_x.x;
@@ -87,11 +96,16 @@ fn can_player_move(level: &Level, position: Vec2) -> bool {
 }
 
 fn check_exit(
-    level: Res<Level>,
-    mut player_query: Query<&mut Transform, With<Player>>,
+    mut level: ResMut<Level>,
+    combat: Res<CombatState>,
+    player_query: Query<&Transform, With<Player>>,
     mut exit_query: Query<&mut Sprite, With<crate::world::Exit>>,
 ) {
-    let Ok(player) = player_query.single_mut() else {
+    if combat.active || level.finished {
+        return;
+    }
+
+    let Ok(player) = player_query.single() else {
         return;
     };
 
@@ -101,9 +115,39 @@ fn check_exit(
 
     let player_grid = world_to_grid(player.translation.truncate());
 
-    if player_grid == exit {
-        for mut sprite in &mut exit_query {
-            sprite.color = Color::srgb(0.25, 1.0, 0.35);
+    for mut sprite in &mut exit_query {
+        if player_grid == exit {
+            level.finished = true;
+            sprite.color = Color::srgb(0.30, 1.0, 0.35);
+        } else if !level.finished {
+            sprite.color = Color::srgb(1.0, 0.78, 0.05);
         }
+    }
+}
+
+fn check_monster(
+    mut level: ResMut<Level>,
+    mut combat: ResMut<CombatState>,
+    mut rng: ResMut<DiceRng>,
+    player_query: Query<&Transform, With<Player>>,
+) {
+    if combat.active || combat.game_over {
+        return;
+    }
+
+    let Ok(player) = player_query.single() else {
+        return;
+    };
+
+    let player_grid = world_to_grid(player.translation.truncate());
+
+    if level.monster_spots.remove(&player_grid) {
+        let monster = match rng.roll(4) {
+            1 => MonsterType::Gobelin,
+            2 => MonsterType::Renard,
+            3 => MonsterType::Loup,
+            _ => MonsterType::Hobgobelin,
+        };
+        combat.begin_encounter(monster);
     }
 }

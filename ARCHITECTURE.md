@@ -1,32 +1,38 @@
 # Architecture
 
 ## Moteur
-
 - Rust
 - Bevy 0.19
 
 ## Modules
 
 ### `src/main.rs`
-Point d'entrée et assemblage des systèmes.
+Point d'entrée et assemblage des plugins.
 
 ### `src/player/`
-Gestion du joueur et du déplacement.
+Gestion du joueur, déplacement, collisions et arrivée.
 
 ### `src/world/`
-Carte, cases, murs, sortie et PNJ.
+Carte, terrain, rochers, végétation, sortie et emplacement du monstre.
+
+### `src/combat/`
+Caractéristiques du joueur, types de monstres, D20 et résolution du combat.
 
 ### `src/ui/`
-Interface utilisateur.
+Interface d'exploration et fenêtre de combat.
 
-## Principe
+## Niveau
 
-La carte est décrite par une grille ASCII dans `world/mod.rs`.
+Le niveau est maintenant un terrain ouvert décrit par une grille ASCII :
+- `#` = bord / rocher gris
+- `R` = rocher gris
+- `V` = végétation verte
+- `P` = départ
+- `E` = sortie jaune
+- `.` = terrain praticable
 
-L'idée est de pouvoir remplacer plus tard cette carte codée en dur par :
-- un fichier JSON/TOML
-- Tiled
-- un éditeur de niveau
-- ou un format propriétaire.
+Le monstre est placé aléatoirement sur une case praticable à l'intérieur du terrain.
 
-Le joueur utilise la grille pour déterminer les cases bloquées.
+## Combat
+
+Le joueur choisit un monstre avec les touches `1` à `4`, puis lance le D20 avec `ESPACE`.
