@@ -1,64 +1,73 @@
-# JDR — Niveau 01
+# JDR — Prototype 2D Rust + Bevy
 
-Premier prototype jouable du projet JDR en Rust + Bevy.
+Petit jeu de rôle 2D développé en Rust avec Bevy 0.19.
 
-## Ce prototype contient
+## État actuel — Étape 3
 
-- Une carte 2D en grille de 25 x 15 cases
-- Un personnage contrôlable
-- Déplacement avec **ZQSD** ou **WASD**, ainsi que les flèches
-- Collision avec les murs
-- Une sortie de niveau
-- Un PNJ décoratif
-- Une interface indiquant les commandes et l'objectif
-- Une structure de projet prévue pour être développée par plusieurs IA
+Le prototype contient maintenant :
+
+- déplacement avec ZQSD / WASD / flèches ;
+- personnage avec FOR, INT, CON, WIS, DEX et CHA ;
+- carte générée aléatoirement à chaque lancement ;
+- rochers gris et végétation verte bloquants ;
+- chemin garanti entre le départ et la sortie ;
+- sortie jaune ;
+- brouillard de guerre persistant ;
+- vision du personnage sur sa case et une case autour de lui ;
+- 4 à 6 monstres invisibles placés aléatoirement ;
+- rencontres avec Gobelin, Renard, Loup ou Hobgobelin ;
+- combat simple au D20 ;
+- PV du joueur et des monstres.
+
+## Commandes
+
+### Exploration
+
+- ZQSD / WASD / flèches : déplacement
+
+### Combat
+
+- ESPACE : lancer le D20
+
+Les monstres ne sont pas visibles sur la carte. Le combat commence automatiquement lorsque le joueur marche sur une case contenant un monstre.
+
+## Brouillard de guerre
+
+Au début, seule la zone proche du personnage est visible. En se déplaçant, le joueur révèle progressivement la carte. Une case déjà découverte reste visible.
+
+## Carte aléatoire
+
+Une nouvelle disposition est créée à chaque lancement :
+
+- position verticale du départ et de la sortie ;
+- rochers ;
+- végétation ;
+- emplacement des monstres.
+
+Un passage libre est toujours conservé entre le départ et la sortie pour éviter une carte impossible.
 
 ## Lancer le jeu
-
-Il faut avoir Rust installé.
 
 ```bash
 cargo run
 ```
 
-Pour une version optimisée :
+Vérifier la compilation :
 
 ```bash
-cargo run --release
+cargo check
 ```
 
-## Structure
+## Technologies
 
-```text
-src/
-├── main.rs
-├── player/
-│   └── mod.rs
-├── world/
-│   └── mod.rs
-└── ui/
-    └── mod.rs
+- Rust
+- Bevy 0.19
 
-assets/
-└── README.md
+## Prochaines idées
 
-tests/
-└── README.md
-```
-
-## Objectif du niveau
-
-Partir du point de départ en haut à gauche et atteindre la porte de sortie en bas à droite sans traverser les murs.
-
-## Étape suivante
-
-Ce niveau est volontairement simple. Il servira de base pour ajouter progressivement :
-- caméra plus évoluée
-- vraie carte de jeu
-- sprites
-- ennemis
-- combat
-- inventaire
-- dialogues
-- sauvegarde
-- quêtes
+- améliorer les règles de combat ;
+- utiliser davantage INT, WIS et CHA ;
+- expérience et niveaux ;
+- inventaire et objets ;
+- plusieurs niveaux ;
+- sauvegarde.
