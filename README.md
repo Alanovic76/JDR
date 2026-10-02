@@ -71,3 +71,6 @@ cargo check
 - inventaire et objets ;
 - plusieurs niveaux ;
 - sauvegarde.
+
+## Étape 4
+L'interface affiche maintenant l'état complet du personnage et, pendant un combat, celui du monstre. À la fin d'une partie, un écran FIN apparaît : ENTRÉE génère une nouvelle partie et ÉCHAP quitte le jeu.

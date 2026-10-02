@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::player::Player;
-use super::{CombatState, DiceRng, MonsterType, PlayerStats};
+use super::{CombatState, DiceRng, PlayerStats};
 
 pub fn combat_system(
     keyboard: Res<ButtonInput<KeyCode>>,

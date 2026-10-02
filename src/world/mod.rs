@@ -4,6 +4,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use bevy::prelude::*;
 
 use crate::player::Player;
+use crate::combat::CombatState;
+use crate::ui::RestartRequest;
 
 pub const TILE_SIZE: f32 = 32.0;
 pub const MAP_WIDTH: usize = 25;
@@ -23,6 +25,9 @@ pub struct Level {
 
 #[derive(Component)]
 pub struct Exit;
+
+#[derive(Component)]
+struct WorldEntity;
 
 #[derive(Component)]
 struct Tile;
@@ -74,7 +79,7 @@ impl Plugin for WorldPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<Level>()
             .add_systems(PreStartup, setup_world)
-            .add_systems(Update, reveal_fog);
+            .add_systems(Update, (reveal_fog, restart_game));
     }
 }
 
@@ -109,7 +114,11 @@ pub fn is_blocked(level: &Level, world_position: Vec2) -> bool {
 }
 
 fn setup_world(mut commands: Commands, mut level: ResMut<Level>) {
-    commands.spawn(Camera2d);
+    generate_world(&mut commands, &mut level);
+}
+
+fn generate_world(commands: &mut Commands, level: &mut Level) {
+    commands.spawn((Camera2d, WorldEntity));
 
     let mut rng = SimpleRng::new();
 
@@ -180,7 +189,7 @@ fn setup_world(mut commands: Commands, mut level: ResMut<Level>) {
                 Color::srgb(0.17, 0.23, 0.17)
             };
 
-            commands.spawn((
+            commands.spawn((WorldEntity, 
                 Sprite::from_color(floor_color, Vec2::splat(TILE_SIZE - 1.0)),
                 Transform::from_xyz(position.x, position.y, 0.0),
                 Tile,
@@ -196,7 +205,7 @@ fn setup_world(mut commands: Commands, mut level: ResMut<Level>) {
             || grid.y == MAP_HEIGHT as i32 - 1
         {
             let position = grid_to_world(grid);
-            commands.spawn((
+            commands.spawn((WorldEntity, 
                 Sprite::from_color(Color::srgb(0.32, 0.32, 0.35), Vec2::splat(TILE_SIZE - 3.0)),
                 Transform::from_xyz(position.x, position.y, 1.0),
             ));
@@ -210,7 +219,7 @@ fn setup_world(mut commands: Commands, mut level: ResMut<Level>) {
             ObstacleKind::Rock => Color::srgb(0.48, 0.48, 0.50),
             ObstacleKind::Vegetation => Color::srgb(0.12, 0.55, 0.18),
         };
-        commands.spawn((
+        commands.spawn((WorldEntity, 
             Sprite::from_color(color, Vec2::splat(TILE_SIZE - 5.0)),
             Transform::from_xyz(position.x, position.y, 1.0),
         ));
@@ -218,14 +227,14 @@ fn setup_world(mut commands: Commands, mut level: ResMut<Level>) {
 
     // Marqueur de départ.
     let start_pos = grid_to_world(start);
-    commands.spawn((
+    commands.spawn((WorldEntity, 
         Sprite::from_color(Color::srgb(0.20, 0.55, 0.95), Vec2::splat(TILE_SIZE - 6.0)),
         Transform::from_xyz(start_pos.x, start_pos.y, 2.0),
     ));
 
     // Sortie jaune.
     let exit_pos = grid_to_world(exit);
-    commands.spawn((
+    commands.spawn((WorldEntity, 
         Sprite::from_color(Color::srgb(1.0, 0.78, 0.05), Vec2::splat(TILE_SIZE - 6.0)),
         Transform::from_xyz(exit_pos.x, exit_pos.y, 2.0),
         Exit,
@@ -258,7 +267,7 @@ fn setup_world(mut commands: Commands, mut level: ResMut<Level>) {
             let initially_visible = (grid.x - start.x).abs() > FOG_RADIUS
                 || (grid.y - start.y).abs() > FOG_RADIUS;
 
-            commands.spawn((
+            commands.spawn((WorldEntity, 
                 Sprite::from_color(Color::srgb(0.015, 0.018, 0.02), Vec2::splat(TILE_SIZE)),
                 Transform::from_xyz(position.x, position.y, 4.0),
                 FogTile { grid },
@@ -284,5 +293,25 @@ fn reveal_fog(
         {
             *visibility = Visibility::Hidden;
         }
+    }
+}
+
+fn restart_game(
+    mut commands: Commands,
+    mut restart: ResMut<RestartRequest>,
+    world_entities: Query<Entity, With<WorldEntity>>,
+    mut level: ResMut<Level>,
+    mut combat: ResMut<CombatState>,
+    mut player: Query<&mut Transform, With<Player>>,
+) {
+    if !restart.0 { return; }
+    restart.0 = false;
+    for entity in &world_entities { commands.entity(entity).despawn(); }
+    *level = Level::default();
+    *combat = CombatState::default();
+    generate_world(&mut commands, &mut level);
+    if let (Some(start), Ok(mut transform)) = (level.player_start, player.single_mut()) {
+        let p = grid_to_world(start);
+        transform.translation.x = p.x; transform.translation.y = p.y;
     }
 }
