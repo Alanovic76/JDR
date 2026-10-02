@@ -4,7 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use bevy::prelude::*;
 
 use crate::player::Player;
-use crate::combat::CombatState;
+use crate::combat::{CombatState, Equipment, TreasureState};
 use crate::ui::RestartRequest;
 
 pub const TILE_SIZE: f32 = 48.0;
@@ -20,6 +20,7 @@ pub struct Level {
     pub exit: Option<IVec2>,
     pub player_start: Option<IVec2>,
     pub monster_spots: HashSet<IVec2>,
+    pub treasure_spots: HashSet<IVec2>,
     pub finished: bool,
 }
 
@@ -31,6 +32,9 @@ struct WorldEntity;
 
 #[derive(Component)]
 struct Tile;
+
+#[derive(Component)]
+pub struct TreasureTile { pub grid: IVec2 }
 
 #[derive(Component)]
 struct FogTile {
@@ -258,6 +262,16 @@ fn generate_world(commands: &mut Commands, level: &mut Level) {
         level.monster_spots.insert(grid);
     }
 
+    // 3 à 5 trésors invisibles, distincts des monstres.
+    let treasure_count = 3 + rng.range_usize(3);
+    for _ in 0..treasure_count.min(free_tiles.len()) {
+        let index = rng.range_usize(free_tiles.len());
+        let grid = free_tiles.swap_remove(index);
+        level.treasure_spots.insert(grid);
+        let position = grid_to_world(grid);
+        commands.spawn((WorldEntity, Sprite::from_color(Color::srgb(0.95,0.68,0.08), Vec2::new(TILE_SIZE-14.0,TILE_SIZE-20.0)), Transform::from_xyz(position.x,position.y,3.0), Visibility::Hidden, TreasureTile{grid}));
+    }
+
     // Brouillard : une tuile noire au-dessus de chaque case. Elles seront retirées
     // définitivement à mesure que le joueur explore la carte.
     for y in 0..MAP_HEIGHT as i32 {
@@ -279,7 +293,9 @@ fn generate_world(commands: &mut Commands, level: &mut Level) {
 
 fn reveal_fog(
     player_query: Query<&Transform, With<Player>>,
-    mut fog_query: Query<(&FogTile, &mut Visibility)>,
+    mut fog_query: Query<(&FogTile, &mut Visibility), Without<TreasureTile>>,
+    mut treasure_query: Query<(&TreasureTile, &mut Visibility), Without<FogTile>>,
+    level: Res<Level>,
 ) {
     let Ok(player) = player_query.single() else {
         return;
@@ -288,11 +304,10 @@ fn reveal_fog(
     let player_grid = world_to_grid(player.translation.truncate());
 
     for (fog, mut visibility) in &mut fog_query {
-        if (fog.grid.x - player_grid.x).abs() <= FOG_RADIUS
-            && (fog.grid.y - player_grid.y).abs() <= FOG_RADIUS
-        {
-            *visibility = Visibility::Hidden;
-        }
+        if (fog.grid.x-player_grid.x).abs()<=FOG_RADIUS && (fog.grid.y-player_grid.y).abs()<=FOG_RADIUS { *visibility=Visibility::Hidden; }
+    }
+    for (treasure, mut visibility) in &mut treasure_query {
+        if level.treasure_spots.contains(&treasure.grid) && (treasure.grid.x-player_grid.x).abs()<=FOG_RADIUS && (treasure.grid.y-player_grid.y).abs()<=FOG_RADIUS { *visibility=Visibility::Visible; }
     }
 }
 
@@ -302,6 +317,8 @@ fn restart_game(
     world_entities: Query<Entity, With<WorldEntity>>,
     mut level: ResMut<Level>,
     mut combat: ResMut<CombatState>,
+    mut equipment: ResMut<Equipment>,
+    mut treasure: ResMut<TreasureState>,
     mut player: Query<&mut Transform, With<Player>>,
 ) {
     if !restart.0 { return; }
@@ -309,6 +326,8 @@ fn restart_game(
     for entity in &world_entities { commands.entity(entity).despawn(); }
     *level = Level::default();
     *combat = CombatState::default();
+    *equipment = Equipment::default();
+    *treasure = TreasureState::default();
     generate_world(&mut commands, &mut level);
     if let (Some(start), Ok(mut transform)) = (level.player_start, player.single_mut()) {
         let p = grid_to_world(start);

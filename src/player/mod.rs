@@ -1,153 +1,16 @@
 use bevy::prelude::*;
-
-use crate::combat::{CombatState, DiceRng, MonsterType, PlayerStats};
-use crate::world::{grid_to_world, is_blocked, world_to_grid, Level};
-
-#[derive(Component)]
-pub struct Player;
-
-const PLAYER_SIZE: f32 = 33.0;
-const PLAYER_SPEED: f32 = 255.0;
-
+use crate::combat::{CombatState,DiceRng,Equipment,MonsterType,PlayerStats,Score,HighScores,TreasureState,Weapon};
+use crate::world::{grid_to_world,is_blocked,world_to_grid,Level,TreasureTile};
+use crate::ui::PlayerProfile;
+#[derive(Component)] pub struct Player;
+const PLAYER_SIZE:f32=33.0; const PLAYER_SPEED:f32=255.0;
 pub struct PlayerPlugin;
-
-impl Plugin for PlayerPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_player)
-            .add_systems(Update, (player_movement, check_exit, check_monster));
-    }
-}
-
-fn spawn_player(
-    mut commands: Commands,
-    level: Res<Level>,
-) {
-    let start = level.player_start.unwrap_or(IVec2::new(1, 7));
-    let position = grid_to_world(start);
-
-    commands.spawn((
-        Sprite::from_color(
-            Color::srgb(0.25, 0.70, 1.0),
-            Vec2::splat(PLAYER_SIZE),
-        ),
-        Transform::from_xyz(position.x, position.y, 5.0),
-        Player,
-        PlayerStats::default(),
-    ));
-}
-
-fn player_movement(
-    keyboard: Res<ButtonInput<KeyCode>>,
-    time: Res<Time>,
-    level: Res<Level>,
-    combat: Res<CombatState>,
-    mut player_query: Query<&mut Transform, With<Player>>,
-) {
-    if combat.active || level.finished {
-        return;
-    }
-
-    let Ok(mut transform) = player_query.single_mut() else {
-        return;
-    };
-
-    let mut direction = Vec2::ZERO;
-
-    if keyboard.pressed(KeyCode::KeyA) || keyboard.pressed(KeyCode::ArrowLeft) {
-        direction.x -= 1.0;
-    }
-    if keyboard.pressed(KeyCode::KeyD) || keyboard.pressed(KeyCode::ArrowRight) {
-        direction.x += 1.0;
-    }
-    if keyboard.pressed(KeyCode::KeyW) || keyboard.pressed(KeyCode::KeyZ) || keyboard.pressed(KeyCode::ArrowUp) {
-        direction.y += 1.0;
-    }
-    if keyboard.pressed(KeyCode::KeyS) || keyboard.pressed(KeyCode::ArrowDown) {
-        direction.y -= 1.0;
-    }
-
-    if direction == Vec2::ZERO {
-        return;
-    }
-
-    let direction = direction.normalize();
-    let delta = direction * PLAYER_SPEED * time.delta_secs();
-    let current = transform.translation.truncate();
-
-    let next_x = current + Vec2::new(delta.x, 0.0);
-    if can_player_move(level.as_ref(), next_x) {
-        transform.translation.x = next_x.x;
-    }
-
-    let current_after_x = transform.translation.truncate();
-    let next_y = current_after_x + Vec2::new(0.0, delta.y);
-    if can_player_move(level.as_ref(), next_y) {
-        transform.translation.y = next_y.y;
-    }
-}
-
-fn can_player_move(level: &Level, position: Vec2) -> bool {
-    let half = PLAYER_SIZE / 2.0 - 2.0;
-
-    !is_blocked(level, position + Vec2::new(-half, -half))
-        && !is_blocked(level, position + Vec2::new(half, -half))
-        && !is_blocked(level, position + Vec2::new(-half, half))
-        && !is_blocked(level, position + Vec2::new(half, half))
-}
-
-fn check_exit(
-    mut level: ResMut<Level>,
-    combat: Res<CombatState>,
-    player_query: Query<&Transform, With<Player>>,
-    mut exit_query: Query<&mut Sprite, With<crate::world::Exit>>,
-) {
-    if combat.active || level.finished {
-        return;
-    }
-
-    let Ok(player) = player_query.single() else {
-        return;
-    };
-
-    let Some(exit) = level.exit else {
-        return;
-    };
-
-    let player_grid = world_to_grid(player.translation.truncate());
-
-    for mut sprite in &mut exit_query {
-        if player_grid == exit {
-            level.finished = true;
-            sprite.color = Color::srgb(0.30, 1.0, 0.35);
-        } else if !level.finished {
-            sprite.color = Color::srgb(1.0, 0.78, 0.05);
-        }
-    }
-}
-
-fn check_monster(
-    mut level: ResMut<Level>,
-    mut combat: ResMut<CombatState>,
-    mut rng: ResMut<DiceRng>,
-    player_query: Query<&Transform, With<Player>>,
-) {
-    if combat.active || combat.game_over {
-        return;
-    }
-
-    let Ok(player) = player_query.single() else {
-        return;
-    };
-
-    let player_grid = world_to_grid(player.translation.truncate());
-
-    if level.monster_spots.remove(&player_grid) {
-        let monster = match rng.roll(4) {
-            1 => MonsterType::Gobelin,
-            2 => MonsterType::Renard,
-            3 => MonsterType::Loup,
-            _ => MonsterType::Hobgobelin,
-        };
-        combat.begin_encounter(monster);
-    }
-}
+impl Plugin for PlayerPlugin{fn build(&self,app:&mut App){app.add_systems(Startup,spawn_player).add_systems(Update,(choose_weapon,player_movement,check_exit,check_monster,check_treasure,open_treasure));}}
+fn spawn_player(mut commands:Commands,level:Res<Level>){let start=level.player_start.unwrap_or(IVec2::new(1,7));let p=grid_to_world(start);commands.spawn((Sprite::from_color(Color::srgb(0.25,0.70,1.0),Vec2::splat(PLAYER_SIZE)),Transform::from_xyz(p.x,p.y,5.0),Player,PlayerStats::default()));}
+fn choose_weapon(keyboard:Res<ButtonInput<KeyCode>>,profile:Res<PlayerProfile>,mut equipment:ResMut<Equipment>){if !profile.confirmed||equipment.weapon.is_some(){return;} equipment.weapon=if keyboard.just_pressed(KeyCode::Digit1){Some(Weapon::Sword)}else if keyboard.just_pressed(KeyCode::Digit2){Some(Weapon::Hammer)}else if keyboard.just_pressed(KeyCode::Digit3){Some(Weapon::SwordShield)}else if keyboard.just_pressed(KeyCode::Digit4){Some(Weapon::Axe)}else{None};}
+fn player_movement(keyboard:Res<ButtonInput<KeyCode>>,profile:Res<PlayerProfile>,time:Res<Time>,level:Res<Level>,combat:Res<CombatState>,equipment:Res<Equipment>,treasure:Res<TreasureState>,mut q:Query<&mut Transform,With<Player>>){if !profile.confirmed||equipment.weapon.is_none()||combat.active||level.finished||treasure.pending{return;}let Ok(mut t)=q.single_mut()else{return;};let mut d=Vec2::ZERO;if keyboard.pressed(KeyCode::KeyA)||keyboard.pressed(KeyCode::ArrowLeft){d.x-=1.;}if keyboard.pressed(KeyCode::KeyD)||keyboard.pressed(KeyCode::ArrowRight){d.x+=1.;}if keyboard.pressed(KeyCode::KeyW)||keyboard.pressed(KeyCode::KeyZ)||keyboard.pressed(KeyCode::ArrowUp){d.y+=1.;}if keyboard.pressed(KeyCode::KeyS)||keyboard.pressed(KeyCode::ArrowDown){d.y-=1.;}if d==Vec2::ZERO{return;}let delta=d.normalize()*PLAYER_SPEED*time.delta_secs();let cur=t.translation.truncate();let nx=cur+Vec2::new(delta.x,0.);if can_move(&level,nx){t.translation.x=nx.x;}let cur=t.translation.truncate();let ny=cur+Vec2::new(0.,delta.y);if can_move(&level,ny){t.translation.y=ny.y;}}
+fn can_move(level:&Level,p:Vec2)->bool{let h=PLAYER_SIZE/2.-2.;!is_blocked(level,p+Vec2::new(-h,-h))&&!is_blocked(level,p+Vec2::new(h,-h))&&!is_blocked(level,p+Vec2::new(-h,h))&&!is_blocked(level,p+Vec2::new(h,h))}
+fn check_exit(mut level:ResMut<Level>,combat:Res<CombatState>,q:Query<&Transform,With<Player>>,mut exits:Query<&mut Sprite,With<crate::world::Exit>>){if combat.active||level.finished{return;}let Ok(p)=q.single()else{return;};let Some(exit)=level.exit else{return;};let g=world_to_grid(p.translation.truncate());for mut s in &mut exits{if g==exit{level.finished=true;s.color=Color::srgb(0.30,1.,0.35);}else if !level.finished{s.color=Color::srgb(1.,0.78,0.05);}}}
+fn check_monster(mut level:ResMut<Level>,mut combat:ResMut<CombatState>,mut rng:ResMut<DiceRng>,treasure:Res<TreasureState>,q:Query<&Transform,With<Player>>){if combat.active||combat.game_over||treasure.pending{return;}let Ok(p)=q.single()else{return;};let g=world_to_grid(p.translation.truncate());if level.monster_spots.remove(&g){let m=match rng.roll(4){1=>MonsterType::Gobelin,2=>MonsterType::Renard,3=>MonsterType::Loup,_=>MonsterType::Hobgobelin};combat.begin_encounter(m,&mut rng);}}
+fn check_treasure(level:Res<Level>,combat:Res<CombatState>,mut treasure:ResMut<TreasureState>,q:Query<&Transform,With<Player>>){if combat.active||treasure.pending{return;}let Ok(p)=q.single()else{return;};let g=world_to_grid(p.translation.truncate());if level.treasure_spots.contains(&g){treasure.pending=true;treasure.grid=Some(g);treasure.message="Coffre découvert ! ESPACE : jet de DEX pour l'ouvrir.".into();}}
+fn open_treasure(keyboard:Res<ButtonInput<KeyCode>>,mut level:ResMut<Level>,mut treasure:ResMut<TreasureState>,mut rng:ResMut<DiceRng>,mut score:ResMut<Score>,mut highs:ResMut<HighScores>,profile:Res<PlayerProfile>,q:Query<&PlayerStats,With<Player>>,mut tq:Query<(&TreasureTile,&mut Visibility)>){if !treasure.pending||!keyboard.just_pressed(KeyCode::Space){return;}let Ok(stats)=q.single()else{return;};let d20=rng.roll(20);let total=d20+stats.dex_mod();if d20==20||total>=12{let gold=rng.roll(20)+rng.roll(10);score.gold+=gold as u32;highs.update(&profile.name,&score);if let Some(g)=treasure.grid{level.treasure_spots.remove(&g);for (tile,mut vis) in &mut tq{if tile.grid==g{*vis=Visibility::Hidden;}}}treasure.message=format!("Coffre ouvert ! D20 {} + DEX = {}. Vous gagnez {} pièces d'or.",d20,total,gold);}else{treasure.message=format!("Échec ! D20 {} + DEX = {} (12 requis). Le coffre reste fermé : vous pourrez réessayer.",d20,total);}treasure.pending=false;treasure.grid=None;}
