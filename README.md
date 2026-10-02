@@ -74,3 +74,12 @@ cargo check
 
 ## Étape 4
 L'interface affiche maintenant l'état complet du personnage et, pendant un combat, celui du monstre. À la fin d'une partie, un écran FIN apparaît : ENTRÉE génère une nouvelle partie et ÉCHAP quitte le jeu.
+
+## Étape 5
+
+- Cases agrandies d'environ 50 % (48 px au lieu de 32 px).
+- Vitesse et taille du personnage adaptées à la nouvelle échelle.
+- Lancement en plein écran fenêtré (sans bordure) sur l'écran principal.
+- Cadre PERSONNAGE permanent à gauche.
+- Cadre MONSTRE permanent à droite ; les informations apparaissent lors d'une rencontre.
+- Bandeau de commandes placé en bas pour laisser la carte dégagée.

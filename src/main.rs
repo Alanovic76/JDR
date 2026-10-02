@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::window::{MonitorSelection, WindowMode};
 
 mod combat;
 mod player;
@@ -15,16 +16,11 @@ fn main() {
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "JDR - Exploration".into(),
-                resolution: (1000, 700).into(),
+                mode: WindowMode::BorderlessFullscreen(MonitorSelection::Primary),
                 ..default()
             }),
             ..default()
         }))
-        .add_plugins((
-            WorldPlugin,
-            PlayerPlugin,
-            CombatPlugin,
-            UiPlugin,
-        ))
+        .add_plugins((WorldPlugin, PlayerPlugin, CombatPlugin, UiPlugin))
         .run();
 }

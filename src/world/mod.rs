@@ -7,7 +7,7 @@ use crate::player::Player;
 use crate::combat::CombatState;
 use crate::ui::RestartRequest;
 
-pub const TILE_SIZE: f32 = 32.0;
+pub const TILE_SIZE: f32 = 48.0;
 pub const MAP_WIDTH: usize = 25;
 pub const MAP_HEIGHT: usize = 15;
 

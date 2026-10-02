@@ -6,8 +6,8 @@ use crate::world::{grid_to_world, is_blocked, world_to_grid, Level};
 #[derive(Component)]
 pub struct Player;
 
-const PLAYER_SIZE: f32 = 22.0;
-const PLAYER_SPEED: f32 = 170.0;
+const PLAYER_SIZE: f32 = 33.0;
+const PLAYER_SPEED: f32 = 255.0;
 
 pub struct PlayerPlugin;
 

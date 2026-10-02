@@ -1,14 +1,13 @@
-use bevy::prelude::*;
 use bevy::app::AppExit;
+use bevy::prelude::*;
 
 use crate::combat::{CombatState, PlayerStats};
 use crate::player::Player;
 use crate::world::Level;
 
 #[derive(Component)] struct StatusText;
-#[derive(Component)] struct StatsText;
-#[derive(Component)] struct CombatText;
-#[derive(Component)] struct CombatPanel;
+#[derive(Component)] struct PlayerCardText;
+#[derive(Component)] struct MonsterCardText;
 #[derive(Component)] struct EndPanel;
 #[derive(Component)] struct EndText;
 
@@ -23,42 +22,114 @@ impl Plugin for UiPlugin {
     }
 }
 
+fn card_node(left: Option<f32>, right: Option<f32>) -> Node {
+    Node {
+        position_type: PositionType::Absolute,
+        left: left.map(px).unwrap_or(Val::Auto),
+        right: right.map(px).unwrap_or(Val::Auto),
+        top: px(24),
+        width: px(270),
+        min_height: px(250),
+        padding: UiRect::all(px(18)),
+        border: UiRect::all(px(3)),
+        flex_direction: FlexDirection::Column,
+        row_gap: px(8),
+        ..default()
+    }
+}
+
 fn setup_ui(mut commands: Commands) {
-    commands.spawn((Node { position_type: PositionType::Absolute, top:px(10), left:px(10), padding:UiRect::all(px(10)), flex_direction:FlexDirection::Column, row_gap:px(4), ..default() }, BackgroundColor(Color::srgba(0.03,0.05,0.03,0.90)), children![
-        (Text::new("JDR - NIVEAU 01"), TextFont::from_font_size(22.0), TextColor(Color::WHITE)),
-        (Text::new("Déplacement : ZQSD / WASD / Flèches"), TextFont::from_font_size(15.0), TextColor(Color::srgb(0.75,0.85,0.75))),
-        (Text::new(""), TextFont::from_font_size(15.0), TextColor(Color::srgb(0.95,0.90,0.55)), StatsText),
-        (Text::new("Exploration..."), TextFont::from_font_size(15.0), TextColor(Color::srgb(0.40,1.0,0.55)), StatusText),
-    ]));
+    // Carte du personnage à gauche.
+    commands.spawn((
+        card_node(Some(24.0), None),
+        BackgroundColor(Color::srgba(0.035, 0.055, 0.045, 0.94)),
+        BorderColor::all(Color::srgb(0.38, 0.72, 0.46)),
+        children![
+            (Text::new("PERSONNAGE"), TextFont::from_font_size(25.0), TextColor(Color::WHITE)),
+            (Text::new(""), TextFont::from_font_size(18.0), TextColor(Color::srgb(0.88, 0.95, 0.88)), PlayerCardText),
+        ],
+    ));
 
-    commands.spawn((Node { position_type:PositionType::Absolute, right:px(10), top:px(10), width:px(255), padding:UiRect::all(px(12)), flex_direction:FlexDirection::Column, ..default() }, BackgroundColor(Color::srgba(0.05,0.05,0.08,0.92)), children![
-        (Text::new(""), TextFont::from_font_size(16.0), TextColor(Color::WHITE), CombatText)
-    ], CombatPanel));
+    // Carte du monstre à droite. Elle reste visible même hors combat.
+    commands.spawn((
+        card_node(None, Some(24.0)),
+        BackgroundColor(Color::srgba(0.065, 0.035, 0.035, 0.94)),
+        BorderColor::all(Color::srgb(0.75, 0.32, 0.28)),
+        children![
+            (Text::new("MONSTRE"), TextFont::from_font_size(25.0), TextColor(Color::WHITE)),
+            (Text::new(""), TextFont::from_font_size(18.0), TextColor(Color::srgb(0.96, 0.88, 0.86)), MonsterCardText),
+        ],
+    ));
 
-    commands.spawn((Node { position_type:PositionType::Absolute, left:px(180), right:px(180), top:px(170), bottom:px(170), padding:UiRect::all(px(25)), align_items:AlignItems::Center, justify_content:JustifyContent::Center, display:Display::None, ..default() }, BackgroundColor(Color::srgba(0.02,0.02,0.02,0.97)), children![
-        (Text::new(""), TextFont::from_font_size(28.0), TextColor(Color::WHITE), EndText)
-    ], EndPanel));
+    // Bandeau d'état discret en bas, pour ne pas recouvrir la carte.
+    commands.spawn((
+        Node { position_type: PositionType::Absolute, left:px(320), right:px(320), bottom:px(18), padding:UiRect::axes(px(14), px(9)), justify_content:JustifyContent::Center, ..default() },
+        BackgroundColor(Color::srgba(0.02,0.025,0.02,0.90)),
+        children![(Text::new("Exploration..."), TextFont::from_font_size(17.0), TextColor(Color::srgb(0.72,0.92,0.72)), StatusText)],
+    ));
+
+    commands.spawn((
+        Node { position_type:PositionType::Absolute, left:px(330), right:px(330), top:px(150), bottom:px(150), padding:UiRect::all(px(25)), align_items:AlignItems::Center, justify_content:JustifyContent::Center, display:Display::None, ..default() },
+        BackgroundColor(Color::srgba(0.02,0.02,0.02,0.97)),
+        children![(Text::new(""), TextFont::from_font_size(30.0), TextColor(Color::WHITE), EndText)],
+        EndPanel,
+    ));
 }
 
 fn update_ui(
     combat: Res<CombatState>, level: Res<Level>, player_query: Query<&PlayerStats, With<Player>>,
-    mut stats_q: Query<&mut Text,(With<StatsText>,Without<StatusText>,Without<CombatText>,Without<EndText>)>,
-    mut status_q: Query<&mut Text,(With<StatusText>,Without<StatsText>,Without<CombatText>,Without<EndText>)>,
-    mut combat_q: Query<&mut Text,(With<CombatText>,Without<StatsText>,Without<StatusText>,Without<EndText>)>,
-    mut combat_panel: Query<&mut Node,(With<CombatPanel>,Without<EndPanel>)>,
-    mut end_panel: Query<&mut Node,(With<EndPanel>,Without<CombatPanel>)>,
-    mut end_text: Query<&mut Text,(With<EndText>,Without<StatsText>,Without<StatusText>,Without<CombatText>)>,
+    mut player_card: Query<&mut Text,(With<PlayerCardText>,Without<MonsterCardText>,Without<StatusText>,Without<EndText>)>,
+    mut monster_card: Query<&mut Text,(With<MonsterCardText>,Without<PlayerCardText>,Without<StatusText>,Without<EndText>)>,
+    mut status_q: Query<&mut Text,(With<StatusText>,Without<PlayerCardText>,Without<MonsterCardText>,Without<EndText>)>,
+    mut end_panel: Query<&mut Node,With<EndPanel>>,
+    mut end_text: Query<&mut Text,(With<EndText>,Without<PlayerCardText>,Without<MonsterCardText>,Without<StatusText>)>,
 ) {
     let Ok(stats)=player_query.single() else{return;};
-    if let Ok(mut t)=stats_q.single_mut(){ *t=Text::new(format!("ÉTAT DU PERSONNAGE\nPV : {}/{}\nFOR {}   INT {}   CON {}\nWIS {}   DEX {}   CHA {}",combat.player_hp,combat.player_max_hp,stats.for_,stats.int_,stats.con,stats.wis,stats.dex,stats.cha)); }
-    if let Ok(mut p)=combat_panel.single_mut(){p.display=if combat.active{Display::Flex}else{Display::None};}
-    if combat.active {
-        if let (Some(m),Ok(mut t))=(combat.monster,combat_q.single_mut()) { let (hp,def,atk,dmg)=m.stats(); *t=Text::new(format!("ÉTAT DU MONSTRE\n{}\nPV : {}/{}\nDéfense : {}\nAttaque : {}\nDégâts : D{}\n\n{}\n\n[ESPACE] lancer le D20",m.name(),combat.monster_hp,hp,def,atk,dmg,combat.last_message)); }
+
+    if let Ok(mut t)=player_card.single_mut(){
+        *t=Text::new(format!(
+            "PV : {}/{}\n\nFOR : {}\nINT : {}\nCON : {}\nWIS : {}\nDEX : {}\nCHA : {}",
+            combat.player_hp,combat.player_max_hp,stats.for_,stats.int_,stats.con,stats.wis,stats.dex,stats.cha
+        ));
     }
+
+    if let Ok(mut t)=monster_card.single_mut(){
+        if let Some(m)=combat.monster {
+            let (hp,def,atk,dmg)=m.stats();
+            *t=Text::new(format!(
+                "{}\n\nPV : {}/{}\nDéfense : {}\nAttaque : {}\nDégâts : D{}\n\n{}{}",
+                m.name(), combat.monster_hp, hp, def, atk, dmg,
+                combat.last_message,
+                if combat.active {"\n\n[ESPACE] Lancer le D20"} else {""}
+            ));
+        } else {
+            *t=Text::new("Aucun adversaire\n\nExplorez la carte.\nLes monstres sont invisibles jusqu'à la rencontre.");
+        }
+    }
+
     let ended=level.finished||combat.game_over;
     if let Ok(mut p)=end_panel.single_mut(){p.display=if ended{Display::Flex}else{Display::None};}
-    if ended { if let Ok(mut t)=end_text.single_mut(){ let reason=if combat.game_over{"Vous avez été vaincu."}else{"Vous avez atteint la sortie."}; *t=Text::new(format!("FIN\n\n{}\n\nPV : {}/{}\nFOR {}  INT {}  CON {}\nWIS {}  DEX {}  CHA {}\n\n[ENTRÉE] Nouvelle partie\n[ÉCHAP] Quitter",reason,combat.player_hp,combat.player_max_hp,stats.for_,stats.int_,stats.con,stats.wis,stats.dex,stats.cha)); }}
-    if let Ok(mut s)=status_q.single_mut(){ *s=Text::new(if combat.active{"Combat en cours..."}else if ended{"Partie terminée."}else if combat.victory{"Victoire ! Continuez vers la sortie."}else{"En exploration..."}); }
+    if ended {
+        if let Ok(mut t)=end_text.single_mut(){
+            let reason=if combat.game_over{"Vous avez été vaincu."}else{"Vous avez atteint la sortie."};
+            *t=Text::new(format!(
+                "FIN\n\n{}\n\nPV : {}/{}\nFOR {}  INT {}  CON {}\nWIS {}  DEX {}  CHA {}\n\n[ENTRÉE] Nouvelle partie\n[ÉCHAP] Quitter",
+                reason,combat.player_hp,combat.player_max_hp,stats.for_,stats.int_,stats.con,stats.wis,stats.dex,stats.cha
+            ));
+        }
+    }
+
+    if let Ok(mut s)=status_q.single_mut(){
+        *s=Text::new(if combat.active {
+            "COMBAT EN COURS - ESPACE pour lancer le D20"
+        } else if ended {
+            "Partie terminée."
+        } else if combat.victory {
+            "Victoire ! Continuez vers la sortie."
+        } else {
+            "Déplacement : ZQSD / WASD / Flèches"
+        });
+    }
 }
 
 fn end_controls(keyboard:Res<ButtonInput<KeyCode>>, level:Res<Level>, combat:Res<CombatState>, mut restart:ResMut<RestartRequest>, mut exit:MessageWriter<AppExit>){
